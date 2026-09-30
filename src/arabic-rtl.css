@@ -1,0 +1,173 @@
+/* Arabic / RTL Stylesheet for Connecto Dashboard Mock */
+
+[dir="rtl"],
+.is-rtl,
+.is-rtl * {
+  font-family: "IBM Plex Sans Arabic", Almarai, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.is-rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+/* RTL Sidebar Navigation */
+.is-rtl .sidebar {
+  right: 0;
+  left: auto;
+  border-left: 1px solid rgba(229, 231, 235, 0.7);
+  border-right: none;
+}
+
+.is-rtl .collapse-button {
+  left: -12px;
+  right: auto;
+}
+
+.is-rtl .nav-item {
+  text-align: right;
+}
+
+.is-rtl .brand-logo {
+  object-position: right center;
+}
+
+/* RTL Main Layout Margins */
+.is-rtl .main-content {
+  margin-right: 256px;
+  margin-left: 0;
+  transition: margin-right 0.24s ease;
+}
+
+.is-rtl .main-content.sidebar-collapsed {
+  margin-right: 100px;
+  margin-left: 0;
+}
+
+/* Topbar in RTL */
+.is-rtl .topbar {
+  flex-direction: row-reverse;
+}
+
+.is-rtl .breadcrumbs {
+  flex-direction: row;
+}
+
+/* Search inputs in RTL */
+.is-rtl .search-input > svg,
+.is-rtl .leaderboard-search > svg {
+  right: 12px;
+  left: auto;
+}
+
+.is-rtl .search-input input,
+.is-rtl .leaderboard-search input {
+  padding-right: 38px;
+  padding-left: 12px;
+  text-align: right;
+}
+
+/* Cards & Lists in RTL */
+.is-rtl .stat-card {
+  text-align: right;
+}
+
+.is-rtl .stat-copy > span,
+.is-rtl .stat-copy > strong {
+  text-align: right;
+}
+
+.is-rtl .order-row,
+.is-rtl .listing-row {
+  text-align: right;
+}
+
+.is-rtl .order-total,
+.is-rtl .listing-price {
+  text-align: left;
+}
+
+.is-rtl .order-row .row-chevron,
+.is-rtl .listing-row .row-chevron {
+  transform: rotate(180deg);
+}
+
+.is-rtl .listing-actions {
+  margin-right: auto;
+  margin-left: 0;
+}
+
+/* Top Selling Tabs in RTL */
+.is-rtl .test-tab-button {
+  text-align: right;
+}
+
+.is-rtl .stat-metric {
+  text-align: right;
+}
+
+.is-rtl .units-sold-block {
+  text-align: left;
+}
+
+.is-rtl .leaderboard-table th,
+.is-rtl .leaderboard-table td {
+  text-align: right;
+}
+
+.is-rtl .leaderboard-table td:last-child {
+  text-align: left;
+}
+
+/* Modal in RTL */
+.is-rtl .modal-header {
+  flex-direction: row-reverse;
+}
+
+.is-rtl .modal-dialog-footer {
+  flex-direction: row-reverse;
+}
+
+.is-rtl .gen-modal-footer {
+  flex-direction: row-reverse;
+}
+
+.is-rtl .alpha-style-card {
+  text-align: right;
+}
+
+.is-rtl .detail-row {
+  flex-direction: row;
+}
+
+.is-rtl .r2-url-header {
+  flex-direction: row-reverse;
+}
+
+.is-rtl .current-img-option-card,
+.is-rtl .active-source-pill {
+  flex-direction: row;
+  text-align: right;
+}
+
+.is-rtl .current-img-info,
+.is-rtl .active-source-meta {
+  text-align: right;
+}
+
+@media (max-width: 980px) {
+  .is-rtl .sidebar,
+  .is-rtl .sidebar:not(.is-collapsed) {
+    width: 100px;
+  }
+  .is-rtl .main-content {
+    margin-right: 100px;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 639px) {
+  .is-rtl .main-content {
+    margin-right: 0;
+  }
+}

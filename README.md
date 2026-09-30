@@ -5,9 +5,10 @@ A standalone, frontend-only mock of four screens from the dashboard:
 - Alpha AI image generator
 - Jumia Overview
 - Amazon Orders
-- Amazon Product Listings
+- Amazon Product Listings (with AI image generator `POST /ai/generate-image-url` and marketplace sync `marketplace-update-poc`)
+- Top-selling Products API Mock (`top selling test 1`, `top selling test 2`, `top selling test 3`)
 
-All screen data is seeded in `src/mockData.js`. Search, filters, dialogs, and listing/order edits update browser state only. Alpha AI uses local sample previews. There are no backend clients, API requests, remote image URLs, or account credentials in this app.
+All screen data is seeded in `src/mockData.js` and `src/topSellingData.js`. Search, filters, dialogs, and listing/order edits update browser state only. The Listings tab includes an "Add Image" flow implementing the `POST /ai/generate-image-url` specification with Cloudflare R2 storage and the `marketplace-update-poc` sync workflow.
 
 ## Run
 

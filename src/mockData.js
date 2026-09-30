@@ -121,3 +121,5 @@ export const amazonListingsMock = amazonListingSeeds.map((listing) => {
     marketplaceId: 'ARBP9OOSHTCHU',
   };
 });
+
+export { topSellingEgyptMock, topSellingKsaMock, topSellingUaeMock, topSellingDatasets, platformMeta } from './topSellingData';
