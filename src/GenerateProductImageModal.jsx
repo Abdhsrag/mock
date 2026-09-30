@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Sparkles, ImageIcon, RefreshCw, Check, CheckCircle2, Copy,
-  ArrowRight, ShieldCheck, ExternalLink, Cloud, Send, LoaderCircle,
-  Package, Info, X, Upload, ClipboardCheck, FileImage, Layers, Trash2,
+  Cloud, LoaderCircle, X, Upload, ClipboardCheck, Trash2,
   Circle, Camera, House, ScanLine
 } from 'lucide-react';
 import { translations } from './translations';
@@ -92,7 +91,6 @@ export default function GenerateProductImageModal({
 }) {
   const [prompt, setPrompt] = useState('');
   const [style, setStyle] = useState('white-bg');
-  const [autoSend, setAutoSend] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [generatedResult, setGeneratedResult] = useState(null);
@@ -102,19 +100,15 @@ export default function GenerateProductImageModal({
   // mode: 'current' | 'upload'
   const [sourceMode, setSourceMode] = useState('current');
   const [sourceImage, setSourceImage] = useState(null);
+  const [isDragActive, setIsDragActive] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
   const [sourceError, setSourceError] = useState('');
   const fileInputRef = useRef(null);
   const objectUrlsRef = useRef([]);
   const generationTimerRef = useRef(null);
-  const syncTimersRef = useRef([]);
-
-  // Marketplace sync execution states
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncStep, setSyncStep] = useState(0);
-  const closeDialog = () => { if (!isSyncing) onClose(); };
-  const dialogRef = useModalFocus(closeDialog, !isSyncing);
+  const closeDialog = () => onClose();
+  const dialogRef = useModalFocus(closeDialog, true);
 
   const t = translations[lang] || translations.en;
 
@@ -122,7 +116,6 @@ export default function GenerateProductImageModal({
 
   useEffect(() => () => {
     if (generationTimerRef.current) window.clearInterval(generationTimerRef.current);
-    syncTimersRef.current.forEach(window.clearTimeout);
     objectUrlsRef.current.forEach(URL.revokeObjectURL);
   }, []);
 
@@ -272,7 +265,7 @@ export default function GenerateProductImageModal({
     },
   ];
 
-  // Generate Image Flow: POST /ai/generate-image-url
+  // Create a local preview of the selected style and prompt.
   const handleGenerate = () => {
     if (isGenerating) return;
     setIsGenerating(true);
@@ -322,37 +315,12 @@ export default function GenerateProductImageModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Add Image & Optional Auto-Sync to Marketplace
-  const handleAddAndSync = () => {
+  // Add the reviewed preview to this listing in the local catalog.
+  const handleAddImage = () => {
     if (!generatedResult) return;
-
-    if (autoSend) {
-      setIsSyncing(true);
-      setSyncStep(1); // Step 1: Product lookup
-
-      syncTimersRef.current.push(window.setTimeout(() => {
-        setSyncStep(2); // Step 2: Feed / Batch update submission
-      }, 700));
-
-      syncTimersRef.current.push(window.setTimeout(() => {
-        setSyncStep(3); // Step 3: Batch completion polling
-      }, 1500));
-
-      syncTimersRef.current.push(window.setTimeout(() => {
-        setSyncStep(4); // Step 4: Read-back verification
-      }, 2200));
-
-      syncTimersRef.current.push(window.setTimeout(() => {
-        setIsSyncing(false);
-        onAddImageToListing(listing.sku, generatedResult, true);
-        if (notify) notify(lang === 'ar' ? `تمت إضافة الصورة لـ ${listing.sku} ومحاكاة المزامنة` : `Image added to ${listing.sku}; sync simulated`);
-        onClose();
-      }, 2900));
-    } else {
-      onAddImageToListing(listing.sku, generatedResult, false);
-      if (notify) notify(lang === 'ar' ? `تمت إضافة الصورة لـ ${listing.sku} محلياً` : `Image added to ${listing.sku}`);
-      onClose();
-    }
+    onAddImageToListing(listing.sku, generatedResult);
+    notify?.(lang === 'ar' ? `تمت إضافة الصورة لـ ${listing.sku}` : `Image added to ${listing.sku}`);
+    onClose();
   };
 
   return (
@@ -367,14 +335,14 @@ export default function GenerateProductImageModal({
       >
         {/* Modal Header */}
         <div className="modal-header">
-          <div className="modal-title-icon" style={{ background: '#f5f3ff', color: '#7c3aed' }}>
+          <div className="modal-title-icon" aria-hidden="true">
             <Sparkles size={20} />
           </div>
           <div className="modal-title">
             <h2 id="generate-image-title">{t.genProductImage}</h2>
             <span>{t.genSubtitle}</span>
           </div>
-          <button className="icon-button" onClick={closeDialog} disabled={isSyncing} aria-label={t.close}>
+          <button className="icon-button" onClick={closeDialog} aria-label={t.close}>
             <X size={20} />
           </button>
         </div>
@@ -402,8 +370,11 @@ export default function GenerateProductImageModal({
               {/* Source Reference Image (Choose current image via copying OR upload) */}
               <div className="source-selection-box">
                 <div className="source-section-heading">
-                  <strong>{t.sourceImageSection}</strong>
-                  <span>{t.sourceImageSubtitle}</span>
+                  <span className="workflow-step-index" aria-hidden="true">1</span>
+                  <div>
+                    <h3>{t.sourceImageSection}</h3>
+                    <span>{t.sourceImageSubtitle}</span>
+                  </div>
                 </div>
 
                 {/* Source Mode Tabs */}
@@ -442,7 +413,7 @@ export default function GenerateProductImageModal({
                       </div>
                       <div className="current-img-info">
                         <strong>{t.currentImageLabel}</strong>
-                        <small>{listing.sku} · {currentProductImgUrl ? 'Catalog asset' : t.noImageAttached}</small>
+                    <small>{listing.sku} · {currentProductImgUrl ? t.catalogAsset : t.noImageAttached}</small>
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -479,23 +450,29 @@ export default function GenerateProductImageModal({
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*"
+                      accept="image/png,image/jpeg,image/webp"
                       hidden
                       onChange={(e) => { handleFileUpload(e.target.files?.[0]); e.target.value = ''; }}
                     />
                     <button
                       type="button"
-                      className="modal-dropzone"
+                      className={`modal-dropzone ${isDragActive ? 'is-drag-active' : ''}`}
                       onClick={() => fileInputRef.current?.click()}
+                      onDragEnter={(e) => { e.preventDefault(); setIsDragActive(true); }}
                       onDragOver={(e) => e.preventDefault()}
+                      onDragLeave={(e) => {
+                        if (!e.currentTarget.contains(e.relatedTarget)) setIsDragActive(false);
+                      }}
                       onDrop={(e) => {
                         e.preventDefault();
+                        setIsDragActive(false);
                         handleFileUpload(e.dataTransfer.files?.[0]);
                       }}
                     >
-                      <Upload size={22} />
+                      <span className="dropzone-icon"><Upload size={20} aria-hidden="true" /></span>
                       <strong>{t.dropzoneTitle}</strong>
                       <small>{t.dropzoneSubtitle}</small>
+                      <span className="dropzone-browse-label">{t.browseFiles}</span>
                       <em>{t.dropzoneFormats}</em>
                     </button>
                   </>
@@ -504,7 +481,7 @@ export default function GenerateProductImageModal({
 
                 {/* Active Source Image Indicator */}
                 {sourceImage && (
-                  <div className="active-source-pill">
+                  <div className="active-source-pill" role="status" aria-live="polite">
                     <div className="active-source-left">
                       <div className="active-source-thumb">
                         <img src={sourceImage.url} alt="Active reference" />
@@ -552,10 +529,13 @@ export default function GenerateProductImageModal({
 
               {/* Alpha Style Choices */}
               <div className="gen-field-group">
-                <label>
-                  <span>{t.selectAlphaStyle}</span>
-                  <small>{t.ecommercePreset}</small>
-                </label>
+                <div className="gen-field-heading">
+                  <span className="workflow-step-index" aria-hidden="true">2</span>
+                  <div>
+                    <h3>{t.selectAlphaStyle}</h3>
+                    <small>{t.ecommercePreset}</small>
+                  </div>
+                </div>
                 <div className="alpha-style-grid">
                   {alphaStyles.map((item) => (
                     <button
@@ -567,6 +547,7 @@ export default function GenerateProductImageModal({
                     >
                       <strong><item.Icon size={17} aria-hidden="true" />{item.title}</strong>
                       <small>{item.detail}</small>
+                      <Check className="alpha-style-check" size={15} aria-hidden="true" />
                     </button>
                   ))}
                 </div>
@@ -574,41 +555,35 @@ export default function GenerateProductImageModal({
 
               {/* Prompt Input with Product Name as Placeholder */}
               <div className="gen-field-group">
-                <label htmlFor="generation-prompt">
-                  <span>{t.promptLabel}</span>
-                  <small>{t.promptHelper}</small>
-                </label>
+                <div className="gen-field-heading">
+                  <span className="workflow-step-index" aria-hidden="true">3</span>
+                  <label htmlFor="generation-prompt">
+                    <strong>{t.promptLabel}</strong>
+                    <small id="generation-prompt-hint">{t.promptHelper}</small>
+                  </label>
+                </div>
                 <textarea
                   id="generation-prompt"
                   className="gen-textarea"
                   rows={2}
+                  aria-describedby="generation-prompt-hint"
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder={listing.title || 'Enter product description...'}
                 />
               </div>
 
-              {/* Auto-send to Marketplace Checkbox */}
-              <label className="auto-send-toggle-label">
-                <input
-                  type="checkbox"
-                  checked={autoSend}
-                  onChange={(e) => setAutoSend(e.target.checked)}
-                />
-                <div className="auto-send-text">
-                  <strong>{t.autoSendLabel}</strong>
-                  <span>{t.autoSendDesc}</span>
-                </div>
-              </label>
-
             </div>
 
             {/* Right Preview & Results Panel */}
             <div className="gen-preview-panel">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <strong style={{ fontSize: 13, color: '#1e293b' }}>{t.previewTitle}</strong>
+              <div className="preview-panel-heading">
+                <div>
+                  <h3>{t.previewTitle}</h3>
+                  <span>{generatedResult ? t.previewReadyHint : t.previewEmptyHint}</span>
+                </div>
                 {generatedResult && (
-                  <span className="ready-badge" style={{ marginInlineStart: 0 }}>
+                  <span className="ready-badge">
                     <i />
                     {t.readyBadge}
                   </span>
@@ -616,28 +591,35 @@ export default function GenerateProductImageModal({
               </div>
 
               {/* Viewport */}
-              <div className="preview-viewport" style={{ minHeight: 260 }}>
+              <div className="preview-viewport">
                 {isGenerating ? (
-                  <div className="preview-loading-state">
+                  <div className="preview-loading-state" role="status" aria-live="polite">
                     <div className="loading-pulse-ring">
                       <RefreshCw size={26} className="spin" />
                     </div>
                     <strong style={{ fontSize: 13, color: '#4338ca' }}>
                       {t.generatingText}
                     </strong>
-                    <div className="gen-progress-track">
-                      <div className="gen-progress-fill" style={{ width: `${progress}%` }} />
+                    <div
+                      className="gen-progress-track"
+                      role="progressbar"
+                      aria-label={t.generatingText}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={progress}
+                    >
+                      <div className="gen-progress-fill" style={{ transform: `scaleX(${progress / 100})` }} />
                     </div>
                     <span style={{ fontSize: 11, color: '#64748b' }}>
-                      {lang === 'ar' ? 'معالجة الصورة المرجعية وتخزين النتيجة في Cloudflare R2' : 'Processing reference image and Cloudflare R2 staging'}
+                      {t.previewProcessingHint}
                     </span>
                   </div>
                 ) : generatedResult ? (
-                  <img src={generatedResult.previewUrl} alt="Generated product preview" />
+                  <img src={generatedResult.previewUrl} alt={`${t.generatedPreviewAlt}: ${listing.title || listing.sku}`} />
                 ) : sourceImage ? (
                   <div className="preview-empty-state" style={{ padding: '20px' }}>
                     <div style={{ width: 84, height: 84, borderRadius: 12, overflow: 'hidden', border: '2px solid #7c3aed', background: '#f5f3ff', margin: '0 auto 10px', boxShadow: '0 4px 12px rgba(124,58,237,0.15)' }}>
-                      <img src={sourceImage.url} alt="Source preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      <img src={sourceImage.url} alt={`${t.referenceImagePreview}: ${sourceImage.name}`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                     </div>
                     <strong style={{ color: '#4338ca', fontSize: 13 }}>{t.usingSourcePreview}</strong>
                     <p style={{ margin: '4px 0 0', fontSize: 11, color: '#64748b' }}>
@@ -646,7 +628,7 @@ export default function GenerateProductImageModal({
                   </div>
                 ) : (
                   <div className="preview-empty-state">
-                    <ImageIcon size={48} />
+                    <span className="empty-preview-icon"><ImageIcon size={24} /></span>
                     <strong>{t.noImageYet}</strong>
                     <p>{t.noImageYetDesc}</p>
                   </div>
@@ -681,45 +663,20 @@ export default function GenerateProductImageModal({
                 </div>
               )}
 
-              {/* Marketplace Sync Sequence Indicator (shown when syncing) */}
-              {isSyncing && (
-                <div className="market-sync-box">
-                  <strong style={{ fontSize: 12, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <LoaderCircle size={14} className="spin" color="#2563eb" />
-                    {t.syncExecuting}
-                  </strong>
-                  <div className={`sync-step-item ${syncStep >= 1 ? (syncStep > 1 ? 'done' : 'active') : ''}`}>
-                    {syncStep > 1 ? <CheckCircle2 size={13} /> : <div style={{ width: 13 }} />}
-                    <span>{t.syncStep1} ({listing.sku})</span>
-                  </div>
-                  <div className={`sync-step-item ${syncStep >= 2 ? (syncStep > 2 ? 'done' : 'active') : ''}`}>
-                    {syncStep > 2 ? <CheckCircle2 size={13} /> : <div style={{ width: 13 }} />}
-                    <span>{t.syncStep2}</span>
-                  </div>
-                  <div className={`sync-step-item ${syncStep >= 3 ? (syncStep > 3 ? 'done' : 'active') : ''}`}>
-                    {syncStep > 3 ? <CheckCircle2 size={13} /> : <div style={{ width: 13 }} />}
-                    <span>{t.syncStep3}</span>
-                  </div>
-                  <div className={`sync-step-item ${syncStep >= 4 ? 'done' : ''}`}>
-                    {syncStep >= 4 ? <CheckCircle2 size={13} /> : <div style={{ width: 13 }} />}
-                    <span>{t.syncStep4}</span>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
 
         {/* Modal Footer */}
         <div className="gen-modal-footer">
-          <button className="button button-outline" onClick={closeDialog} disabled={isSyncing}>
+          <button className="button button-outline" onClick={closeDialog}>
             {lang === 'ar' ? 'إلغاء' : 'Cancel'}
           </button>
           {generatedResult && (
             <button
               className="button button-outline"
               onClick={handleGenerate}
-              disabled={isGenerating || isSyncing}
+              disabled={isGenerating}
             >
               <RefreshCw size={14} />
               {t.regenerate}
@@ -727,30 +684,17 @@ export default function GenerateProductImageModal({
           )}
           <button
             className="button button-primary"
-            style={{
-              background: generatedResult ? 'linear-gradient(135deg, #16a34a, #15803d)' : 'linear-gradient(135deg, #7c3aed, #4f46e5)'
-            }}
-            disabled={isGenerating || isSyncing}
-            onClick={generatedResult ? handleAddAndSync : handleGenerate}
+            disabled={isGenerating}
+            onClick={generatedResult ? handleAddImage : handleGenerate}
           >
-            {isSyncing ? (
-              <>
-                <LoaderCircle size={15} className="spin" />
-                {lang === 'ar' ? 'جاري المزامنة مع المنصة...' : 'Syncing to Marketplace...'}
-              </>
-            ) : isGenerating ? (
-              <><LoaderCircle size={15} className="spin" />{t.generatingText} {progress}%</>
+            {isGenerating ? (
+              <><LoaderCircle size={15} className="spin" />{t.generatingText}</>
             ) : !generatedResult ? (
               <><Sparkles size={15} />{t.generateButton}</>
-            ) : autoSend ? (
-              <>
-                <Send size={15} />
-                {t.addAndSend}
-              </>
             ) : (
               <>
                 <Check size={15} />
-                {t.addLocally}
+                {t.addToListing}
               </>
             )}
           </button>
